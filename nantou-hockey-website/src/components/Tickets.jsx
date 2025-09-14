@@ -162,7 +162,7 @@ const Tickets = () => {
 
     // 7. 使用 try...catch 結構發送請求並處理回應
     try {
-      const response = await fetch(`${backendUrl}/api/purchase`, { // 確認 API 路徑
+      const response = await fetch(`${backendUrl}/api/tickets/purchase`, { // 確認 API 路徑
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

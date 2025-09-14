@@ -49,7 +49,7 @@ const Registration = () => {
 
     // 3. 使用 try...catch 結構來處理網路請求的成功與失敗
     try {
-      const response = await fetch(`${backendUrl}/teams`, { // 假設您的後端報名API路由是 /api/register
+      const response = await fetch(`${backendUrl}/api/registration/teams`, { // 假設您的後端報名API路由是 /api/register
         method: 'POST', // 4. 使用 POST 方法來提交資料
         headers: {
           'Content-Type': 'application/json', // 5. 告訴後端我們發送的是 JSON 格式

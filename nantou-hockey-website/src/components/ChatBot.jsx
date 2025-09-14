@@ -176,7 +176,7 @@ const ChatBot = () => {
     const backendUrl = import.meta.env.VITE_API_BASE_URL;
 
     try {
-      const response = await fetch(`${backendUrl}/chat`, {
+      const response = await fetch(`${backendUrl}/api/gemini/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
