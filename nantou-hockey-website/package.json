@@ -9,8 +9,8 @@
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "predeploy": "pnpm run build", // 部署前先執行建置
-    "deploy": "gh-pages -d dist" // 將建置好的 dist 資料夾內容推送到 gh-pages 分支
+    "predeploy": "pnpm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "react": "^19.1.1",

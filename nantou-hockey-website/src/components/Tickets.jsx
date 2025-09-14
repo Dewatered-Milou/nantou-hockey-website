@@ -10,7 +10,9 @@ import { Ticket, Users, Star, Gift, Calendar, MapPin, Clock, CreditCard } from '
 const Tickets = () => {
   const [selectedTickets, setSelectedTickets] = useState({});
   const [showCheckout, setShowCheckout] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [successInfo, setSuccessInfo] = useState(null); 
   const ticketTypes = [
     {
       id: 'general',
@@ -126,11 +128,77 @@ const Tickets = () => {
     }
   };
 
-  const handlePurchase = (e) => {
-    e.preventDefault();
-    alert('購票成功！您將收到確認郵件。');
-    setShowCheckout(false);
-    setSelectedTickets({});
+  const handlePurchase = async (e) => {
+    e.preventDefault(); // 1. 防止表單的預設提交行為 (重新整理頁面)
+    setIsLoading(true);   // 2. 開始載入狀態
+    setSubmitError(null);
+    setSuccessInfo(null);
+
+    // 3. 從表單元素中直接獲取使用者填寫的資料
+    const formData = {
+      firstName: e.target.elements.firstName.value,
+      email: e.target.elements.email.value,
+      phone: e.target.elements.phone.value,
+      idNumber: e.target.elements.idNumber.value,
+      paymentMethod: e.target.elements.paymentMethod.value, // 假設 Select 元件有 name="paymentMethod"
+    };
+
+    // 4. 準備要發送到後端的票券資料，過濾掉數量為 0 的票
+    const ticketsToPurchase = Object.entries(selectedTickets)
+      .filter(([_, quantity]) => quantity > 0)
+      .reduce((acc, [id, quantity]) => {
+        acc[id] = quantity;
+        return acc;
+      }, {});
+
+    // 5. 組合最終要發送的 JSON 資料
+    const purchaseData = {
+      ...formData,
+      tickets: ticketsToPurchase,
+    };
+
+    // 6. 讀取後端 URL
+    const backendUrl = import.meta.env.VITE_API_BASE_URL;
+
+    // 7. 使用 try...catch 結構發送請求並處理回應
+    try {
+      const response = await fetch(`${backendUrl}/api/purchase`, { // 確認 API 路徑
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(purchaseData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // 如果後端回應錯誤
+        throw new Error(result.error || '購票失敗，請稍後再試。');
+      }
+
+      // 8. 處理成功的回應
+      console.log('購票成功:', result);
+      setSuccessInfo({
+          message: result.message,
+          orderId: result.orderId,
+          totalAmount: result.totalAmount,
+      });
+      // 清空購物車並關閉彈出視窗 (但延遲一下讓使用者看到成功訊息)
+      setTimeout(() => {
+          setShowCheckout(false);
+          setSelectedTickets({});
+          setSuccessInfo(null); // 清除成功訊息，以便下次購買
+      }, 5000); // 5秒後自動關閉
+
+    } catch (error) {
+      // 9. 處理網路或邏輯錯誤
+      console.error('購票時發生錯誤:', error);
+      setSubmitError(error.message);
+    } finally {
+      // 10. 無論成功或失敗，都結束載入狀態
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -336,78 +404,96 @@ const Tickets = () => {
         {showCheckout && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">結帳資訊</h3>
-                  <Button variant="ghost" onClick={() => setShowCheckout(false)}>
-                    ✕
-                  </Button>
+              {/* 判斷是否顯示成功畫面 */}
+              {successInfo ? (
+                <div className="p-8 text-center">
+                    <h3 className="text-2xl font-bold text-green-600 mb-4">🎉 購票成功！</h3>
+                    <p className="text-gray-700 mb-2">{successInfo.message}</p>
+                    <p className="text-gray-700">您的訂單編號是：<strong className="text-blue-600">{successInfo.orderId}</strong></p>
+                    <p className="text-gray-700">總金額為：<strong className="text-blue-600">NT$ {successInfo.totalAmount.toLocaleString()}</strong></p>
+                    <p className="text-gray-500 mt-4">我們已將詳細資訊寄至您的電子郵件。此視窗將在幾秒後自動關閉。</p>
                 </div>
-
-                <form onSubmit={handlePurchase} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="firstName">姓名 *</Label>
-                      <Input id="firstName" placeholder="請輸入姓名" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="email">電子郵件 *</Label>
-                      <Input id="email" type="email" placeholder="example@email.com" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">聯絡電話 *</Label>
-                      <Input id="phone" placeholder="0912-345-678" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="idNumber">身分證字號 *</Label>
-                      <Input id="idNumber" placeholder="A123456789" required />
-                    </div>
+              ) : (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-bold">結帳資訊</h3>
+                    <Button variant="ghost" onClick={() => setShowCheckout(false)}>
+                      ✕
+                    </Button>
                   </div>
 
-                  <div>
-                    <Label htmlFor="paymentMethod">付款方式 *</Label>
-                    <Select required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="選擇付款方式" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="credit">信用卡</SelectItem>
-                        <SelectItem value="atm">ATM轉帳</SelectItem>
-                        <SelectItem value="convenience">超商付款</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-3">訂單摘要</h4>
-                    {Object.entries(selectedTickets).map(([ticketId, quantity]) => {
-                      if (quantity === 0) return null;
-                      const ticket = ticketTypes.find(t => t.id === ticketId);
-                      return (
-                        <div key={ticketId} className="flex justify-between items-center mb-2">
-                          <span>{ticket.name} × {quantity}</span>
-                          <span>NT$ {(ticket.price * quantity).toLocaleString()}</span>
-                        </div>
-                      );
-                    })}
-                    <div className="border-t pt-2 mt-2">
-                      <div className="flex justify-between items-center font-bold text-lg">
-                        <span>總金額</span>
-                        <span className="text-blue-600">NT$ {getTotalPrice().toLocaleString()}</span>
+                  <form onSubmit={handlePurchase} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="firstName">姓名 *</Label>
+                        <Input id="firstName" placeholder="請輸入姓名" required />
+                      </div>
+                      <div>
+                        <Label htmlFor="email">電子郵件 *</Label>
+                        <Input id="email" type="email" placeholder="example@email.com" required />
+                      </div>
+                      <div>
+                        <Label htmlFor="phone">聯絡電話 *</Label>
+                        <Input id="phone" placeholder="0912-345-678" required />
+                      </div>
+                      <div>
+                        <Label htmlFor="idNumber">身分證字號 *</Label>
+                        <Input id="idNumber" placeholder="A123456789" required />
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex gap-4">
-                    <Button type="submit" className="flex-1" size="lg">
-                      確認購買
-                    </Button>
-                    <Button type="button" variant="outline" size="lg" onClick={() => setShowCheckout(false)}>
-                      取消
-                    </Button>
-                  </div>
-                </form>
-              </div>
+                    <div>
+                      <Label htmlFor="paymentMethod">付款方式 *</Label>
+                      <Select required name="paymentMethod">
+                        <SelectTrigger>
+                          <SelectValue placeholder="選擇付款方式" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="credit">信用卡</SelectItem>
+                          <SelectItem value="atm">ATM轉帳</SelectItem>
+                          <SelectItem value="convenience">超商付款</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h4 className="font-semibold mb-3">訂單摘要</h4>
+                      {Object.entries(selectedTickets).map(([ticketId, quantity]) => {
+                        if (quantity === 0) return null;
+                        const ticket = ticketTypes.find(t => t.id === ticketId);
+                        return (
+                          <div key={ticketId} className="flex justify-between items-center mb-2">
+                            <span>{ticket.name} × {quantity}</span>
+                            <span>NT$ {(ticket.price * quantity).toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex justify-between items-center font-bold text-lg">
+                          <span>總金額</span>
+                          <span className="text-blue-600">NT$ {getTotalPrice().toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 顯示錯誤訊息 */}
+                    {submitError && (
+                      <div className="text-red-600 text-center bg-red-50 p-3 rounded-lg">
+                        {submitError}
+                      </div>
+                    )}
+
+                    <div className="flex gap-4">
+                      <Button type="submit" className="flex-1" size="lg" disabled={isLoading}>
+                        {isLoading ? '處理中...' : '確認購買'}
+                      </Button>
+                      <Button type="button" variant="outline" size="lg" onClick={() => setShowCheckout(false)} disabled={isLoading}>
+                        取消
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
             </div>
           </div>
         )}

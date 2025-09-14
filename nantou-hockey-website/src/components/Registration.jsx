@@ -19,7 +19,7 @@ const Registration = () => {
     teamType: '',
     playersCount: '',
     coachName: '',
-    experience: '',
+    experienceLevel: '',
     specialRequirements: '',
     agreeTerms: false,
     agreeDataCollection: false,
@@ -36,11 +36,55 @@ const Registration = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // 這裡會連接到後端API
-    console.log('Form submitted:', formData);
-    alert('報名表單已提交！我們將在3個工作天內與您聯繫。');
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // 1. 防止頁面重新整理
+
+    // 在函式開頭可以加入一個 loading 狀態，並清除舊的錯誤/成功訊息
+    // setIsLoading(true);
+    // setSubmitError(null);
+    // setSuccessMessage('');
+
+    // 2. 從環境變數讀取後端 URL
+    const backendUrl = import.meta.env.VITE_API_BASE_URL;
+
+    // 3. 使用 try...catch 結構來處理網路請求的成功與失敗
+    try {
+      const response = await fetch(`${backendUrl}/teams`, { // 假設您的後端報名API路由是 /api/register
+        method: 'POST', // 4. 使用 POST 方法來提交資料
+        headers: {
+          'Content-Type': 'application/json', // 5. 告訴後端我們發送的是 JSON 格式
+        },
+        body: JSON.stringify(formData), // 6. 將表單的 state 物件轉換成 JSON 字串
+      });
+
+      // 7. 檢查後端的回應是否成功 (例如，HTTP 狀態碼為 200-299)
+      if (!response.ok) {
+        // 如果後端回報錯誤 (例如，欄位驗證失敗)，則拋出錯誤
+        const errorData = await response.json();
+        throw new Error(errorData.message || '報名失敗，請檢查您填寫的資料。');
+      }
+
+      // 8. 解析後端成功時回傳的資料
+      const result = await response.json();
+      console.log('報名成功:', result);
+
+      // 顯示成功訊息給使用者
+      alert('報名表單已成功提交！我們將在3個工作天內與您聯繫。');
+      // setSuccessMessage('報名表單已成功提交！我們將在3個工作天內與您聯繫。');
+
+      // 可以在這裡重設表單
+      // resetForm(); 
+
+    } catch (error) {
+      // 9. 如果 fetch 過程或後端回應出錯，捕捉錯誤
+      console.error('提交報名表時發生錯誤:', error);
+      // 顯示錯誤訊息給使用者
+      alert(`提交失敗：${error.message}`);
+      // setSubmitError(error.message);
+    } finally {
+      // 10. 無論成功或失敗，最後都關閉 loading 狀態
+      // setIsLoading(false);
+    }
   };
 
   const requirements = [
@@ -235,7 +279,7 @@ const Registration = () => {
               <Textarea
                 id="experience"
                 value={formData.experience}
-                onChange={(e) => handleInputChange('experience', e.target.value)}
+                onChange={(e) => handleInputChange('experienceLevel', e.target.value)}
                 placeholder="請簡述隊伍的比賽經驗、重要成績或特色..."
                 rows={4}
               />
